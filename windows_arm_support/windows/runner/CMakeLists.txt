@@ -57,5 +57,5 @@ if(EXISTS "${LIBMPV_PATH}")
     "${LIBMPV_PATH}"
     "$<TARGET_FILE_DIR:${BINARY_NAME}>/libmpv-2.dll"
   )
-  install(FILES "${LIBMPV_PATH}" DESTINATION "${CMAKE_INSTALL_PREFIX}" COMPONENT Runtime)
+
 endif()
