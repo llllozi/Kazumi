@@ -1,4 +1,4 @@
-# Auto-download script for Windows on ARM libmpv
+# Auto-download script for Windows on ARM libmpv and ANGLE
 
 param (
     [string]$TargetDir = "windows"
@@ -8,12 +8,18 @@ $ErrorActionPreference = "Stop"
 
 $ConfigFile = "$PSScriptRoot/libmpv_config.properties"
 
+# Parse config file
+$Url = $null
+$AngleUrl = $null
+
 if (Test-Path $ConfigFile) {
     $ConfigContent = Get-Content $ConfigFile
     foreach ($line in $ConfigContent) {
         if ($line -match "^Url=(.*)$") {
             $Url = $matches[1]
-            break
+        }
+        if ($line -match "^AngleUrl=(.*)$") {
+            $AngleUrl = $matches[1]
         }
     }
 } else {
@@ -26,48 +32,92 @@ if (-not $Url) {
     exit 1
 }
 
-$ArchiveName = "libmpv-aarch64.7z"
+# Function to extract files using available tools
+function Extract-Archive {
+    param (
+        [string]$ArchivePath,
+        [string]$OutputDir,
+        [string[]]$FilesToExtract = @()
+    )
+    
+    if ($ArchivePath -match "\.zip$") {
+        # Use built-in Expand-Archive for zip files
+        Expand-Archive -Path $ArchivePath -DestinationPath $OutputDir -Force
+    } elseif (Get-Command "7z" -ErrorAction SilentlyContinue) {
+        if ($FilesToExtract.Count -gt 0) {
+            $files = $FilesToExtract -join " "
+            7z e $ArchivePath -o"$OutputDir" $FilesToExtract -r
+        } else {
+            7z x $ArchivePath -o"$OutputDir" -r
+        }
+    } elseif (Get-Command "7za" -ErrorAction SilentlyContinue) {
+        if ($FilesToExtract.Count -gt 0) {
+            7za e $ArchivePath -o"$OutputDir" $FilesToExtract -r
+        } else {
+            7za x $ArchivePath -o"$OutputDir" -r
+        }
+    } elseif (Get-Command "tar" -ErrorAction SilentlyContinue) {
+        New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
+        tar -xf $ArchivePath -C $OutputDir
+    } else {
+        Write-Error "No extraction tool found. Please install 7-Zip."
+        exit 1
+    }
+}
+
 $ExtractDir = "libmpv_temp"
+$AngleExtractDir = "angle_temp"
 
-Write-Host "Checking for existing libmpv..."
-if (Test-Path "$TargetDir/libmpv-2.dll") {
-    Write-Host "libmpv-2.dll already exists in $TargetDir. Skipping download."
-    exit 0
-}
-
-Write-Host "Downloading libmpv for Windows ARM64..."
-Invoke-WebRequest -Uri $Url -OutFile $ArchiveName
-
-Write-Host "Extracting..."
-# Try using 7z if available, otherwise suggest installing it or use other method
-# Note: Windows built-in tar can handles some formats, but not 7z usually.
-# Assuming user might have 7z installed or we can find a zip version?
-# Waiting... finding a zip version is harder for these builds.
-# Let's try to assume 7z command line exists or use a .zip generic approach if possible.
-# Actually, minnyres/mpv-windows-arm64 usually has checks.
-# To be safe and dependency free, strictly we need a zip.
-# But media-kit releases are 7z.
-
-# Alternative: Check if 7z is installed
-# Alternative: Check if 7z is installed, fallback to tar (bsdtar which supports 7z on Windows 10+)
-if (Get-Command "7z" -ErrorAction SilentlyContinue) {
-    7z e $ArchiveName -o"$ExtractDir" libmpv-2.dll -r
-} elseif (Get-Command "7za" -ErrorAction SilentlyContinue) {
-    7za e $ArchiveName -o"$ExtractDir" libmpv-2.dll -r
-} elseif (Get-Command "tar" -ErrorAction SilentlyContinue) {
-    # Windows native tar (bsdtar) supports 7z
-    New-Item -ItemType Directory -Force -Path $ExtractDir
-    tar -xf $ArchiveName -C $ExtractDir libmpv-2.dll
+# --- Download and extract libmpv ---
+Write-Host "Checking for existing libmpv-2.dll..."
+if (-not (Test-Path "$TargetDir/libmpv-2.dll")) {
+    Write-Host "Downloading libmpv for Windows ARM64..."
+    $MpvArchive = "libmpv-aarch64.7z"
+    Invoke-WebRequest -Uri $Url -OutFile $MpvArchive
+    
+    Write-Host "Extracting libmpv-2.dll..."
+    New-Item -ItemType Directory -Force -Path $ExtractDir | Out-Null
+    Extract-Archive -ArchivePath $MpvArchive -OutputDir $ExtractDir -FilesToExtract @("libmpv-2.dll")
+    
+    Move-Item "$ExtractDir/libmpv-2.dll" "$TargetDir/libmpv-2.dll" -Force
+    
+    Remove-Item $MpvArchive
+    Remove-Item $ExtractDir -Recurse -Force
+    Write-Host "[OK] libmpv-2.dll installed."
 } else {
-    Write-Error "7z or tar not found. Please install 7-Zip or ensure tar is in your PATH."
-    exit 1
+    Write-Host "[SKIP] libmpv-2.dll already exists."
 }
 
-Write-Host "Installing libmpv-2.dll..."
-Move-Item "$ExtractDir/libmpv-2.dll" "$TargetDir/libmpv-2.dll" -Force
+# --- Download and extract ANGLE libraries ---
+if ($AngleUrl) {
+    Write-Host "Checking for ANGLE libraries (libEGL.dll, libGLESv2.dll)..."
+    if (-not (Test-Path "$TargetDir/libEGL.dll") -or -not (Test-Path "$TargetDir/libGLESv2.dll")) {
+        Write-Host "Downloading ANGLE ARM64 libraries..."
+        $AngleArchive = "angle-arm64.zip"
+        Invoke-WebRequest -Uri $AngleUrl -OutFile $AngleArchive
+        
+        Write-Host "Extracting ANGLE libraries..."
+        New-Item -ItemType Directory -Force -Path $AngleExtractDir | Out-Null
+        Extract-Archive -ArchivePath $AngleArchive -OutputDir $AngleExtractDir
+        
+        # Copy ANGLE DLLs to target directory
+        $angleDlls = @("libEGL.dll", "libGLESv2.dll", "d3dcompiler_47.dll")
+        foreach ($dll in $angleDlls) {
+            $dllPath = Get-ChildItem -Path $AngleExtractDir -Filter $dll -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($dllPath) {
+                Copy-Item $dllPath.FullName "$TargetDir/$dll" -Force
+                Write-Host "[OK] $dll installed."
+            }
+        }
+        
+        Remove-Item $AngleArchive
+        Remove-Item $AngleExtractDir -Recurse -Force
+    } else {
+        Write-Host "[SKIP] ANGLE libraries already exist."
+    }
+} else {
+    Write-Host "[WARN] AngleUrl not set in config, skipping ANGLE download."
+}
 
-Write-Host "Cleaning up..."
-Remove-Item $ArchiveName
-Remove-Item $ExtractDir -Recurse -Force
-
-Write-Host "Done! libmpv-2.dll is ready for ARM64 build."
+Write-Host ""
+Write-Host "All libraries ready for ARM64 build!" -ForegroundColor Green

@@ -49,13 +49,23 @@ add_custom_command(TARGET ${BINARY_NAME}
   COMMAND ${CMAKE_COMMAND} -E remove "$<TARGET_FILE_DIR:${BINARY_NAME}>/${BINARY_NAME}.lib"
 )
 
-# Manually copy libmpv-2.dll if it exists in the windows/ directory (for ARM64 support)
-set(LIBMPV_PATH "${CMAKE_SOURCE_DIR}/libmpv-2.dll")
-if(EXISTS "${LIBMPV_PATH}")
-  add_custom_command(TARGET ${BINARY_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    "${LIBMPV_PATH}"
-    "$<TARGET_FILE_DIR:${BINARY_NAME}>/libmpv-2.dll"
-  )
+# Manually copy ARM64 video libraries if they exist in the windows/ directory
+# Required: libmpv-2.dll, libEGL.dll, libGLESv2.dll (for video output)
+set(ARM64_VIDEO_DLLS
+  "libmpv-2.dll"
+  "libEGL.dll"
+  "libGLESv2.dll"
+  "d3dcompiler_47.dll"
+)
 
-endif()
+foreach(DLL_NAME ${ARM64_VIDEO_DLLS})
+  set(DLL_PATH "${CMAKE_SOURCE_DIR}/${DLL_NAME}")
+  if(EXISTS "${DLL_PATH}")
+    add_custom_command(TARGET ${BINARY_NAME} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${DLL_PATH}"
+      "$<TARGET_FILE_DIR:${BINARY_NAME}>/${DLL_NAME}"
+    )
+  endif()
+endforeach()
+
