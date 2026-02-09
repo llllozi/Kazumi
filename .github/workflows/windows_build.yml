@@ -31,14 +31,15 @@ jobs:
         with:
           arch: amd64_arm64
 
-      - name: Build Windows (ARM64)
-        # Attempting standard build command within ARM64 MSVC environment.
-        # The --target-platform flag is not available in this version.
-        # Cross-compilation relies on the C++ toolchain setup.
-        run: flutter build windows
+      - name: Build Windows (Manual CMake for ARM64)
+        shell: cmd
+        run: |
+          cd windows
+          cmake -S . -B build -A ARM64
+          cmake --build build --config Release --verbose
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-arm64-release
-          path: build/windows/arm64/runner/Release/
+          path: windows/build/runner/Release/
