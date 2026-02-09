@@ -24,4 +24,5 @@ Write-Host ""
 Write-Host "补丁应用完成！" -ForegroundColor Green
 Write-Host "下一步："
 Write-Host "1. 运行下载脚本: .\scripts\update_libmpv_arm64.ps1"
-Write-Host "2. 清理并构建:   fvm flutter clean; fvm flutter pub get; fvm flutter build windows"
+Write-Host "2. 清理并构建:"
+Write-Host "   fvm flutter clean; fvm flutter pub get; fvm flutter build windows"
