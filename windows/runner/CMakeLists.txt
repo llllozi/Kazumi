@@ -48,3 +48,14 @@ add_custom_command(TARGET ${BINARY_NAME}
   COMMAND ${CMAKE_COMMAND} -E remove "$<TARGET_FILE_DIR:${BINARY_NAME}>/${BINARY_NAME}.exp"
   COMMAND ${CMAKE_COMMAND} -E remove "$<TARGET_FILE_DIR:${BINARY_NAME}>/${BINARY_NAME}.lib"
 )
+
+# Manually copy libmpv-2.dll if it exists in the windows/ directory (for ARM64 support)
+set(LIBMPV_PATH "${CMAKE_SOURCE_DIR}/libmpv-2.dll")
+if(EXISTS "${LIBMPV_PATH}")
+  add_custom_command(TARGET ${BINARY_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${LIBMPV_PATH}"
+    "$<TARGET_FILE_DIR:${BINARY_NAME}>/libmpv-2.dll"
+  )
+  install(FILES "${LIBMPV_PATH}" DESTINATION "${CMAKE_INSTALL_PREFIX}" COMPONENT Runtime)
+endif()

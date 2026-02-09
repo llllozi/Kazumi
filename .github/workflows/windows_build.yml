@@ -1,0 +1,37 @@
+name: Windows Build
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'master'
+          
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Setup libmpv for ARM64
+        # This script downloads the ARM64 libmpv. 
+        # Note: Running this on x64 runner means we are preparing ARM64 libs.
+        shell: powershell
+        run: .\scripts\update_libmpv_arm64.ps1
+
+      - name: Build Windows (ARM64)
+        run: flutter build windows --target-platform=windows-arm64
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-arm64-release
+          path: build/windows/arm64/runner/Release/
