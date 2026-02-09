@@ -27,15 +27,15 @@ jobs:
         shell: powershell
         run: .\scripts\update_libmpv_arm64.ps1
 
-      - name: Enable Windows ARM64 support
-        run: flutter config --enable-windows-arm64
-
       - uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: amd64_arm64
 
       - name: Build Windows (ARM64)
-        run: flutter build windows --target-platform=windows-arm64
+        # Attempting standard build command within ARM64 MSVC environment.
+        # The --target-platform flag is not available in this version.
+        # Cross-compilation relies on the C++ toolchain setup.
+        run: flutter build windows
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
