@@ -1,4 +1,4 @@
-# Auto-download script for Windows on ARM libmpv and ANGLE
+# Auto-download script for Windows on ARM libmpv
 
 param (
     [string]$TargetDir = "windows"
@@ -10,16 +10,12 @@ $ConfigFile = "$PSScriptRoot/libmpv_config.properties"
 
 # Parse config file
 $Url = $null
-$AngleUrl = $null
 
 if (Test-Path $ConfigFile) {
     $ConfigContent = Get-Content $ConfigFile
     foreach ($line in $ConfigContent) {
         if ($line -match "^Url=(.*)$") {
             $Url = $matches[1]
-        }
-        if ($line -match "^AngleUrl=(.*)$") {
-            $AngleUrl = $matches[1]
         }
     }
 } else {
@@ -66,7 +62,6 @@ function Extract-Archive {
 }
 
 $ExtractDir = "libmpv_temp"
-$AngleExtractDir = "angle_temp"
 
 # --- Download and extract libmpv ---
 Write-Host "Checking for existing libmpv-2.dll..."
@@ -88,36 +83,5 @@ if (-not (Test-Path "$TargetDir/libmpv-2.dll")) {
     Write-Host "[SKIP] libmpv-2.dll already exists."
 }
 
-# --- Download and extract ANGLE libraries ---
-if ($AngleUrl) {
-    Write-Host "Checking for ANGLE libraries (libEGL.dll, libGLESv2.dll)..."
-    if (-not (Test-Path "$TargetDir/libEGL.dll") -or -not (Test-Path "$TargetDir/libGLESv2.dll")) {
-        Write-Host "Downloading ANGLE ARM64 libraries..."
-        $AngleArchive = "angle-arm64.zip"
-        Invoke-WebRequest -Uri $AngleUrl -OutFile $AngleArchive
-        
-        Write-Host "Extracting ANGLE libraries..."
-        New-Item -ItemType Directory -Force -Path $AngleExtractDir | Out-Null
-        Extract-Archive -ArchivePath $AngleArchive -OutputDir $AngleExtractDir
-        
-        # Copy ANGLE DLLs to target directory
-        $angleDlls = @("libEGL.dll", "libGLESv2.dll", "d3dcompiler_47.dll")
-        foreach ($dll in $angleDlls) {
-            $dllPath = Get-ChildItem -Path $AngleExtractDir -Filter $dll -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($dllPath) {
-                Copy-Item $dllPath.FullName "$TargetDir/$dll" -Force
-                Write-Host "[OK] $dll installed."
-            }
-        }
-        
-        Remove-Item $AngleArchive
-        Remove-Item $AngleExtractDir -Recurse -Force
-    } else {
-        Write-Host "[SKIP] ANGLE libraries already exist."
-    }
-} else {
-    Write-Host "[WARN] AngleUrl not set in config, skipping ANGLE download."
-}
-
 Write-Host ""
-Write-Host "All libraries ready for ARM64 build!" -ForegroundColor Green
+Write-Host "libmpv ready for ARM64 build!" -ForegroundColor Green
