@@ -21,8 +21,8 @@ Copy-Item -Path "$PatchDir\lib" -Destination "$ProjectRoot" -Recurse -Force
 Write-Host "  [+] 已更新 lib/pages/player/player_controller.dart"
 
 Write-Host ""
-Write-Host "补丁应用完成！" -ForegroundColor Green
-Write-Host "下一步："
-Write-Host "1. 运行下载脚本: .\scripts\update_libmpv_arm64.ps1"
-Write-Host "2. 清理并构建:"
+Write-Host "Patch applied successfully!" -ForegroundColor Green
+Write-Host "Next steps:"
+Write-Host "1. Run download script: .\scripts\update_libmpv_arm64.ps1"
+Write-Host "2. Clean and Build:"
 Write-Host "   fvm flutter clean; fvm flutter pub get; fvm flutter build windows"
